@@ -1,1 +1,6 @@
 venv
+passwordman.egg-info/*
+.vscode/*
+decryptdata.py
+encryptfile.py
+encrypttest.py
