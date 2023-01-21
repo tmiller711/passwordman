@@ -5,3 +5,5 @@ passwordman.egg-info/*
 decryptdata.py
 encryptfile.py
 encrypttest.py
+location.txt
+password.txt
