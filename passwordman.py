@@ -1,12 +1,12 @@
 import click
 import os
 import pathlib
-from Crypto.Random import get_random_bytes
-from Crypto.Protocol.KDF import PBKDF2
+from cryptography.fernet import Fernet
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import hashes
 import hashlib
-
-from Crypto.Cipher import AES
-from Crypto.Util.Padding import pad, unpad
+import base64
 
 def get_path():
     return pathlib.Path(__file__).parent.resolve()
@@ -28,37 +28,42 @@ def unlock_account():
         hashed_attempt = hashlib.sha256(password_attempt.encode())
         if password_hash == hashed_attempt.hexdigest():
             click.echo(click.style("Successfully Logged In!", fg="green"))
+            return password_attempt
         else:
             click.echo(click.style("Incorrect Password", fg="red"))
             exit()
 
-def decrypt_data(file, password):
+def decrypt_data_from_file(file, password):
     salt = b''
-    password = 'password'
+    kdf = PBKDF2HMAC(
+        algorithm=hashes.SHA256,
+        length=32,
+        salt=salt,
+        iterations=100000,
+        backend=default_backend()
+    )
+    key = base64.urlsafe_b64encode(kdf.derive(password.encode()))
+    f = Fernet(key)
+    
+    data_to_decrypt = file.read()
+    return f.decrypt(data_to_decrypt)
 
-    key = PBKDF2(password, salt, dkLen=32)
-
-    # with open('encrypted.bin', 'rb') as f:
-    #     iv = f.read(16)
-    #     decrypt_data = f.read()
-    iv = file.read(16)
-    to_decrypt = file.read()
-
-    cipher = AES.new(key, AES.MODE_CBC, iv=iv)
-    return unpad(cipher.decrypt(to_decrypt), AES.block_size)
-
-def encrypt_data(data_to_encrypt, password):
+def encrypt_data_to_file(file, data_to_encrypt, password):
     salt = b''
 
-    key = PBKDF2(password, salt, dkLen=32)
+    kdf = PBKDF2HMAC(
+        algorithm=hashes.SHA256,
+        length=32,
+        salt=salt,
+        iterations=100000,
+        backend=default_backend()
+    )
+    key = base64.urlsafe_b64encode(kdf.derive(password.encode()))
 
-    cipher = AES.new(key, AES.MODE_CBC)
-    ciphered_data = cipher.encrypt(pad(data_to_encrypt, AES.block_size))
-    return ciphered_data
-
-    # with open('encrypted.bin', 'wb') as f:
-    #     f.write(cipher.iv)
-    #     f.write(ciphered_data)
+    f = Fernet(key) 
+    encrypted_data = f.encrypt(data_to_encrypt.encode())
+    
+    file.write(encrypted_data)
 
 @click.group()
 @click.version_option(package_name='passwordman')
@@ -91,19 +96,42 @@ def setup():
     click.echo(click.style("Successfully created file", fg='green'))
 
 @click.command(name='create')
-def create_password():
+def create_entry():
     """
     Create a new password entry
     """
-    unlock_account()
+    master_pass = unlock_account()
 
     # get the new entry and then append it to the encrypted file
     company = click.prompt("What is the name of the company?")
     password = click.prompt("What is the password you want to save?")
+    entry = f"{company} : {password}"
 
     # first need to decrypt data and then add it to the decrypted data and then encrypt it?
+    if os.path.getsize(get_file_dir()) == 0:
+        # if you haven't made any entries
+        with open(get_file_dir(), 'wb') as file:
+            encrypt_data_to_file(file, entry, master_pass)
+
+    else:
+        with open(get_file_dir(), 'rb') as file:
+            decrypted_data = decrypt_data_from_file(file, master_pass)
+        
+        with open(get_file_dir(), 'wb') as file:
+            data = (decrypted_data.decode() + '\n' + entry)
+            encrypt_data_to_file(file, data, master_pass)
+
+@click.command(name='entries')
+def entries():
+    """
+    View all your password entries
+    """
+    master_pass = unlock_account()
+
     with open(get_file_dir(), 'rb') as file:
-        decrypt_file(file, )
+        decrypted_data = decrypt_data_from_file(file, master_pass)
+        print(decrypted_data.decode())
 
 main.add_command(setup)
-main.add_command(create_password)
+main.add_command(create_entry)
+main.add_command(entries)

@@ -2,8 +2,5 @@ venv
 __pycache__/*
 passwordman.egg-info/*
 .vscode/*
-decryptdata.py
-encryptfile.py
-encrypttest.py
 location.txt
 password.txt
