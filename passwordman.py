@@ -79,7 +79,13 @@ def setup():
     Set the directory of encrypted file
     """
     # create a master password
-    master_pass = click.prompt("What would you like the master password to be?")
+    master_pass = click.prompt("What would you like the master password to be?", hide_input=True)
+    confirm_pass = click.prompt("Confirm your pasword")
+    while master_pass != confirm_pass:
+        click.echo(click.style("Passwords do not match", fg='red'))
+        master_pass = click.prompt("What would you like the master password to be?", hide_input=True)
+        confirm_pass = click.prompt("Confirm your pasword")
+        
     with open(f"{get_path()}/password.txt", "w") as file:
         hashed_pass = hashlib.sha256(master_pass.encode())
         file.write(hashed_pass.hexdigest())
