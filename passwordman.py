@@ -20,7 +20,7 @@ def get_file_dir():
         click.echo(click.style("Need to specify the directory of encrypted file", fg='red'))
 
 def unlock_account():
-    password_attempt = click.prompt("What is your master password?")
+    password_attempt = click.prompt("What is your master password?", hide_input=True)
 
     with open(f"{get_path()}/password.txt", "r") as file:
         password_hash = file.read()
@@ -44,7 +44,7 @@ def decrypt_data_from_file(file, password):
     )
     key = base64.urlsafe_b64encode(kdf.derive(password.encode()))
     f = Fernet(key)
-    
+
     data_to_decrypt = file.read()
     return f.decrypt(data_to_decrypt)
 
@@ -78,7 +78,6 @@ def setup():
     """
     Set the directory of encrypted file
     """
-    # if file and password already exist, ask them for the previous pass
     # create a master password
     master_pass = click.prompt("What would you like the master password to be?")
     with open(f"{get_path()}/password.txt", "w") as file:
@@ -107,7 +106,6 @@ def create_entry():
     password = click.prompt("What is the password you want to save?")
     entry = f"{company} : {password}"
 
-    # first need to decrypt data and then add it to the decrypted data and then encrypt it?
     if os.path.getsize(get_file_dir()) == 0:
         # if you haven't made any entries
         with open(get_file_dir(), 'wb') as file:
